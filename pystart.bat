@@ -97,7 +97,7 @@
     set filename=%~nx0
 
     if exist "%filepath%.env" (
-        for /f "usebackq tokens=* eol=#" %%i in ("%filepath%.env") do set %%i
+        for /f "tokens=* eol=# usebackq" %%i in ("%filepath%.env") do set %%i
     )
 
     if not exist "%filepath%venv\" (
@@ -124,7 +124,7 @@
             if exist "%temp%\getscript.tmp" (
                 set /p script=<"%temp%\getscript.tmp"
                 del "%temp%\getscript.tmp"
-                "%~0" "!script!"
+                call "%~0" "%script%"
             )
         ) else (
             echo Specify the script to run
@@ -132,24 +132,16 @@
     ) else (
         if not exist "%filepath%%~1" (
             for %%i in (-c --clear) do (
-                if /i "%~1"=="%%i" (
-                    goto clear
-                )
+                if /i "%~1"=="%%i" goto clear
             )
             for %%i in (-u --upgrade) do (
-                if /i "%~1"=="%%i" (
-                    goto upgrade
-                )
+                if /i "%~1"=="%%i" goto upgrade
             )
             for %%i in (-e --execute) do (
-                if /i "%~1"=="%%i" (
-                    goto execute
-                )
+                if /i "%~1"=="%%i" goto execute
             )
             for %%i in (-h --help) do (
-                if /i "%~1"=="%%i" (
-                    goto help
-                )
+                if /i "%~1"=="%%i" goto help
             )
             goto script_not_found
 
@@ -177,7 +169,7 @@
             goto exit
 
             :help
-            echo Usage: %filename% [-h] [script [^<args^>]] [-c ^| -u ^| e]
+            echo Usage: %filename% [-h] [script [^<args^>]] [-c ^| -u ^| -e]
             echo;
             echo Python Virtual Environment Utility 2.3
             echo;
@@ -196,7 +188,9 @@
             goto exit
         ) else (
             set args=%*
-            call set args=%%args:*%1=%%
+            rem "call set" also can be used
+            set args=!args:*%1=!
+            if not "!args!"=="" set args=!args:~1!
             python "%filepath%%~1" !args!
             if errorlevel 126 (
                 call :write_bom_bytes "%temp%\getadmin.ps1"
@@ -220,7 +214,7 @@
                     echo     Start-Process cmd -ArgumentList "/c cd /d `"%cd%`" &",'"%~f0" "%~1" !args!' -Verb RunAs -WindowStyle hidden
                     echo }
                 ) >> "%temp%\getadmin.ps1"
-                rem Powershell changes font if utf-8 code page is set
+                rem powershell changes font if utf-8 code page is set
                 chcp 437 > nul
                 powershell -NoProfile -ExecutionPolicy bypass -File "%temp%\getadmin.ps1" > nul 2>&1
                 chcp 65001 > nul
@@ -230,21 +224,17 @@
     )
 
     :exit
-    :: Implicit endlocal at EOF deactivates venv
-    chcp !codepage! > nul
+    rem implicit endlocal at EOF deactivates venv
+    chcp %codepage% > nul
     exit /b
 ::Main
 
 :<<"::Functions"
     :determine_codepage  rtnVar
-    :: Determine current codepage, works in different languages
-    for /f "tokens=2 delims=:" %%i in ('chcp') do (
+    :: Determine current codepage, works in different languages.
+    for /f "tokens=2 delims=:." %%i in ('chcp') do (
         set dummy=%%i
-        if "!dummy:~-1!"=="." (
-            set %~1=!dummy:~1,-1!
-        ) else (
-            set %~1=!dummy:~1!
-        )
+        set %~1=!dummy:~1!
     )
     exit /b
 
@@ -252,7 +242,7 @@
     :: Based on built-in forfiles ability to include special characters
     :: in the command line, using hexadecimal code. Allows to generate a
     :: printable character for any byte code value except 0x00 (nul),
-    :: 0x0A (newline), and 0x0D (carriage return)
+    :: 0x0A (newline), and 0x0D (carriage return).
     for /f tokens^=*^ delims^=^ eol^= %%i in (
         'forfiles /p "%~dp0." /m "%~nx0" /c "cmd /c echo;%~1"'
     ) do (
@@ -265,15 +255,15 @@
     exit /b
 
     :write_bom_bytes  filename
-    :: Create file with UTF-8 BOM
-    :: Because powershell doesn't read unicode without it
+    :: Create file with UTF-8 BOM.
+    :: Because powershell doesn't read unicode without it.
     call :determine_codepage CP
     chcp 437 > nul
     call :hexprint "0xEF" EF
     call :hexprint "0xBB" BB
     call :hexprint "0xBF" BF
     echo | set /p dummy="%EF%%BB%%BF%" > "%~1"
-    chcp !CP! > nul
+    chcp %CP% > nul
     exit /b
 ::Functions
 
