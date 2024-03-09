@@ -17,7 +17,7 @@
 : #   (nix): python3, python3-pip, python3-venv
 : #  2) System Utilities
 : #   (win): -
-: #   (nix): coreutils, findutils, grep, sed, (linux): polkit
+: #   (nix): coreutils, findutils, grep, sed; (linux): polkit
 : #
 : # This tool provides basic setup of the required environment and is intended
 : # for python projects distribution. Its code can be rewritten in any other
@@ -37,22 +37,25 @@
 : # to /tmp/getscript.tmp. Then it will be possible to run pystart.bat without
 : # arguments. Or __main__.py can be used as the default script. In this case,
 : # writing name in /tmp/getscript.tmp is not needed. Default script cannot
-: # request root access.
+: # request root access, but the selected one can.
 : #
 : # Requests administrator rights if needed, Powershell is used in Windows,
 : # Polkit in Linux and AppleScript in OS X. When executing a script,
 : # interpreter has only two exit codes: 0 (success) and 1 (an exception was
 : # raised). You can set the exit code manually with sys.exit. Use code 126 to
-: # have pystart.bat restart script with admin rights:
-: # "except PermissionError: sys.exit(126)".
+: # have pystart.bat restart script with admin rights: "sys.exit(126)". If you
+: # know that a program needs elevated privileges to run, but don't want to
+: # edit the source code, declare PYTHONVERBRUNAS before calling. This will
+: # immediately run the script as administrator, skipping loading environment.
+: # Also will --upgrade global interpreter and speed up the launch of --clear.
 : #
-: # It is also possible to clear interpreter cache with:
+: # Clear interpreter cache:
 : # pystart.bat --clear
 : #
-: # And upgrade outdated requirements:
+: # Upgrade outdated requirements:
 : # pystart.bat --upgrade
 : #
-: # Or execute an arbitrary command:
+: # Execute an arbitrary command:
 : # pystart.bat --execute
 : #
 : # Feel free to rename this script. To run on Windows, .bat or .cmd extension
@@ -79,7 +82,7 @@
 : #
 : # DOS uses carriage return and line feed "\r\n" as a line ending, which Unix
 : # uses just line feed "\n". So in order for script to run you may need to
-: # convert end of line sequences with dos2unix or a text editor. Although on
+: # convert end of line sequences with unix2dos or a text editor. Although on
 : # Windows 10 pystart.bat runs without error with unix-style line endings.
 : #
 : # --------------------------------------------------------------------------
@@ -96,26 +99,28 @@
     set filepath=%~dp0
     set filename=%~nx0
 
-    if exist "%filepath%.env" (
-        for /f "tokens=* eol=# usebackq" %%i in ("%filepath%.env") do set %%i
-    )
+    if not defined PYTHONVERBRUNAS (
+        if exist "%filepath%.env" (
+            for /f "tokens=* eol=# usebackq" %%i in ("%filepath%.env") do set %%i
+        )
 
-    if not exist "%filepath%venv\" (
-        echo | set /p dummy="First run, creating a virtual environment.."
-        if defined PYTHONBINARYPATH (
-            set PYTHONBINARYPATH=%PYTHONBINARYPATH:"=%
-            "!PYTHONBINARYPATH!" -m venv "%filepath%venv"
+        if not exist "%filepath%venv\" (
+            echo | set /p dummy="First run, creating a virtual environment.."
+            if defined PYTHONBINARYPATH (
+                set PYTHONBINARYPATH=%PYTHONBINARYPATH:"=%
+                "!PYTHONBINARYPATH!" -m venv "%filepath%venv"
+            ) else (
+                py -3 -m venv "%filepath%venv"
+            )
+            call "%filepath%venv\Scripts\activate.bat"
+            if exist "%filepath%requirements.txt" (
+                pip -qq install --use-pep517 -r "%filepath%requirements.txt"
+            )
+            for /f %%i in ('copy /Z "%~f0" nul') do set CR=%%i
+            <nul set /p dummy=".!CR!                                            !CR!"
         ) else (
-            py -3 -m venv "%filepath%venv"
+            call "%filepath%venv\Scripts\activate.bat"
         )
-        call "%filepath%venv\Scripts\activate.bat"
-        if exist "%filepath%requirements.txt" (
-            pip -qq install --use-pep517 -r "%filepath%requirements.txt"
-        )
-        for /f %%i in ('copy /Z "%~f0" nul') do set CR=%%i
-        <nul set /p dummy=".!CR!                                            !CR!"
-    ) else (
-        call "%filepath%venv\Scripts\activate.bat"
     )
 
     if "%~1"=="" (
@@ -190,36 +195,39 @@
             set args=%*
             rem "call set" also can be used
             set args=!args:*%1=!
-            if not "!args!"=="" set args=!args:~1!
-            python "%filepath%%~1" !args!
-            if errorlevel 126 (
-                call :write_bom_bytes "%temp%\getadmin.ps1"
-                (
-                    echo Add-Type -Language CSharp -TypeDefinition @^"
-                    echo using System.Runtime.InteropServices;
-                    echo public static class User32
-                    echo {
-                    echo     [DllImport^("user32.dll"^)]
-                    echo     public static extern bool IsWindowVisible^(int hwnd^);
-                    echo }
-                    echo ^"@
-                    echo;
-                    echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PID'"^).ParentProcessId
-                    echo $proc = Get-Process -Id $PPID
-                    echo;
-                    echo If ^([User32]::IsWindowVisible^($proc.MainWindowHandle^)^) {
-                    echo     Start-Process cmd -ArgumentList "/k cd /d `"%cd%`" & cls &",'"%~f0" "%~1" !args!' -Verb RunAs
-                    echo }
-                    echo Else {
-                    echo     Start-Process cmd -ArgumentList "/c cd /d `"%cd%`" &",'"%~f0" "%~1" !args!' -Verb RunAs -WindowStyle hidden
-                    echo }
-                ) >> "%temp%\getadmin.ps1"
-                rem powershell changes font if utf-8 code page is set
-                chcp 437 > nul
-                powershell -NoProfile -ExecutionPolicy bypass -File "%temp%\getadmin.ps1" > nul 2>&1
-                chcp 65001 > nul
-                del "%temp%\getadmin.ps1"
+            if not "!args!"=="" (
+                set args=!args:~1!
             )
+            if not defined PYTHONVERBRUNAS (
+                python "%filepath%%~1" !args!
+                if not errorlevel 126 goto exit
+            )
+            call :write_bom_bytes "%temp%\getadmin.ps1"
+            (
+                echo Add-Type -Language CSharp -TypeDefinition @^"
+                echo using System.Runtime.InteropServices;
+                echo public static class User32
+                echo {
+                echo     [DllImport^("user32.dll"^)]
+                echo     public static extern bool IsWindowVisible^(int hwnd^);
+                echo }
+                echo ^"@
+                echo;
+                echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PID'"^).ParentProcessId
+                echo $proc = Get-Process -Id $PPID
+                echo;
+                echo If ^([User32]::IsWindowVisible^($proc.MainWindowHandle^)^) {
+                echo     Start-Process cmd -ArgumentList "/k cd /d `"%cd%`" & cls &",'"%~f0" "%~1" !args!' -Verb RunAs
+                echo }
+                echo Else {
+                echo     Start-Process cmd -ArgumentList "/c cd /d `"%cd%`" &",'"%~f0" "%~1" !args!' -Verb RunAs -WindowStyle hidden
+                echo }
+            ) >> "%temp%\getadmin.ps1"
+            rem powershell changes font if utf-8 code page is set
+            chcp 437 > nul
+            powershell -NoProfile -ExecutionPolicy bypass -File "%temp%\getadmin.ps1" > nul 2>&1
+            chcp 65001 > nul
+            del "%temp%\getadmin.ps1"
         )
     )
 
@@ -273,24 +281,26 @@ filepath=$(readlink -f -- "$0")
 filename=$(basename -- "$filepath")
 filepath=$(dirname -- "$filepath")
 
-if [ -f "$filepath/.env" ]; then
-    export $(grep -v "^#" "$filepath/.env" | xargs)
-fi
+if [ -z "$PYTHONVERBRUNAS" ]; then
+    if [ -f "$filepath/.env" ]; then
+        export $(grep -v "^#" "$filepath/.env" | xargs)
+    fi
 
-if [ ! -d "$filepath/venv" ]; then
-    printf "First run, creating a virtual environment.."
-    if [ -n "$PYTHONBINARYPATH" ]; then
-        "$PYTHONBINARYPATH" -m venv "$filepath/venv"
+    if [ ! -d "$filepath/venv" ]; then
+        printf "First run, creating a virtual environment.."
+        if [ -n "$PYTHONBINARYPATH" ]; then
+            "$PYTHONBINARYPATH" -m venv "$filepath/venv"
+        else
+            python3 -m venv "$filepath/venv"
+        fi
+        . "$filepath/venv/bin/activate"
+        if [ -f "$filepath/requirements.txt" ]; then
+            pip -qq install --use-pep517 -r "$filepath/requirements.txt"
+        fi
+        printf ".\r\033[0K"
     else
-        python3 -m venv "$filepath/venv"
+        . "$filepath/venv/bin/activate"
     fi
-    . "$filepath/venv/bin/activate"
-    if [ -f "$filepath/requirements.txt" ]; then
-        pip -qq install --use-pep517 -r "$filepath/requirements.txt"
-    fi
-    printf ".\r\033[0K"
-else
-    . "$filepath/venv/bin/activate"
 fi
 
 if [ -z "$1" ]; then
@@ -347,10 +357,18 @@ elif [ ! -f "$filepath/$1" ]; then
 else
     script="$1"
     shift
-    python "$filepath/$script" "$@"
+    if [ -z "$PYTHONVERBRUNAS" ]; then
+        python "$filepath/$script" "$@"
+    else
+        (exit 126)
+    fi
     if [ $? -eq 126 ]; then
         if [ -t 0 ]; then
-            su root -c "'$filepath/$filename' '$script' $*"
+            if command -v sudo > /dev/null; then
+                sudo "$filepath/$filename" "$script" $*
+            else
+                su -l -c "'$filepath/$filename' '$script' $*"
+            fi
         else
             if [ "$platform" = "linux" ]; then
                 if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ] || [ -n "$MIR_SOCKET" ]; then
@@ -359,14 +377,16 @@ else
                     echo "Can't run \"$script\" as root with redirected input"
                 fi
             elif [ "$platform" = "darwin" ]; then
-                osascript -e "do shell script \"'$filepath/$filename' '$script' $*\" with administrator privileges"
+                osascript -e "do shell script \"env -i '$filepath/$filename' '$script' $*\" with administrator privileges"
             fi
         fi
     fi
 fi
 
-if [ -f "$filepath/.env" ]; then
-    unset $(grep -v "^#" "$filepath/.env" | sed -E "s/(.*)=.*/\1/" | xargs)
-fi
+if [ -z "$PYTHONVERBRUNAS" ]; then
+    if [ -f "$filepath/.env" ]; then
+        unset $(grep -v "^#" "$filepath/.env" | sed -E "s/(.*)=.*/\1/" | xargs)
+    fi
 
-deactivate
+    deactivate
+fi
