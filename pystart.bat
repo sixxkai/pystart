@@ -4,12 +4,12 @@
 : #   \ \_\   \/\_____\ /\_\ \/\_____\  \ \_\ \ \_\ \_\\ \_\ \_\ \ \_\ /\_\
 : #    \/_/    \/_____/ \/_/  \/_____/   \/_/  \/_/\/_/ \/_/ /_/  \/_/ \/_/
 : #
-: # Cross-platform way to run python in virtual environment
+: # Cross-platform way to run Python in virtual environment
 : # Version: 2.3
 : #
-: # Just use it like this:
-: # pystart.bat archiver.py args
-: # Or any other python script in the folder
+: # Usage:
+: # pystart.bat script.py args
+: # pystart.bat folder/script.py args
 : #
 : # Dependencies:
 : #  1) Python3
@@ -20,7 +20,7 @@
 : #   (nix): coreutils, findutils, grep, sed; (linux): polkit
 : #
 : # This tool provides basic setup of the required environment and is intended
-: # for python projects distribution. Its code can be rewritten in any other
+: # for Python projects distribution. Its code can be rewritten in any other
 : # language, but you will still have to run the commands. So shell is an
 : # assembler in this case, everything is native and simple.
 : #
@@ -83,7 +83,7 @@
 : # DOS uses carriage return and line feed "\r\n" as a line ending, which Unix
 : # uses just line feed "\n". So in order for script to run you may need to
 : # convert end of line sequences with unix2dos or a text editor. Although on
-: # Windows 10 pystart.bat runs without error with unix-style line endings.
+: # Windows 8.1 pystart.bat runs without error with unix-style line endings.
 : #
 : # --------------------------------------------------------------------------
 : #           Copyright (C) 2023 Six Kai under BSD-3-Clause license
