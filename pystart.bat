@@ -107,7 +107,9 @@
         if not exist "%filepath%venv\" (
             echo | set /p dummy="First run, creating a virtual environment.."
             if defined PYTHONBINARYPATH (
-                set PYTHONBINARYPATH=%PYTHONBINARYPATH:"=%
+                set PYTHONBINARYPATH=!PYTHONBINARYPATH:"=!
+            )
+            if exist "!PYTHONBINARYPATH!" (
                 "!PYTHONBINARYPATH!" -m venv "%filepath%venv"
             ) else (
                 py -3 -m venv "%filepath%venv"
@@ -283,12 +285,12 @@ filepath=$(dirname -- "$filepath")
 
 if [ -z "$PYTHONVERBRUNAS" ]; then
     if [ -f "$filepath/.env" ]; then
-        export $(grep -v "^#" "$filepath/.env" | xargs)
+        set -a; . "$filepath/.env"; set +a
     fi
 
     if [ ! -d "$filepath/venv" ]; then
         printf "First run, creating a virtual environment.."
-        if [ -n "$PYTHONBINARYPATH" ]; then
+        if [ -f "$PYTHONBINARYPATH" ]; then
             "$PYTHONBINARYPATH" -m venv "$filepath/venv"
         else
             python3 -m venv "$filepath/venv"
@@ -385,7 +387,7 @@ fi
 
 if [ -z "$PYTHONVERBRUNAS" ]; then
     if [ -f "$filepath/.env" ]; then
-        unset $(grep -v "^#" "$filepath/.env" | sed -E "s/(.*)=.*/\1/" | xargs)
+        unset $(grep -E -v "^#|^$" "$filepath/.env" | sed -E "s/(.*)=.*/\1/" | xargs)
     fi
 
     deactivate
