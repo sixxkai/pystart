@@ -5,7 +5,7 @@
 : #    \/_/    \/_____/ \/_/  \/_____/   \/_/  \/_/\/_/ \/_/ /_/  \/_/ \/_/
 : #
 : # Cross-platform way to run Python in virtual environment
-: # Version: 2.3
+: # Version: 2.4
 : #
 : # Usage:
 : # pystart.bat script.py args
@@ -17,7 +17,8 @@
 : #   (nix): python3, python3-pip, python3-venv
 : #  2) System Utilities
 : #   (win): -
-: #   (nix): coreutils, findutils, grep, sed; (linux): polkit
+: #   (mac): -
+: #   (nix): coreutils, findutils, grep, sed, polkit
 : #
 : # This tool provides basic setup of the required environment and is intended
 : # for Python projects distribution. Its code can be rewritten in any other
@@ -58,9 +59,10 @@
 : # Execute an arbitrary command:
 : # pystart.bat --execute
 : #
-: # Feel free to rename this script. To run on Windows, .bat or .cmd extension
+: # Feel free to rename this file. To run on Windows, .bat or .cmd extension
 : # is required. At the same time, the .py extension is not required, which
-: # allows scripts to be named as subcommands of the utility.
+: # allows scripts to be named as subcommands of the utility. When running
+: # *.py programs, interrupts are ignored.
 : #
 : # -------------------------- Syntax reference ------------------------------
 : #
@@ -100,6 +102,19 @@
     set filename=%~nx0
 
     if not defined PYTHONVERBRUNAS (
+        rem instead of redirecting stdin, a fatal error can be used (goto undefined)
+        rem it immediately terminates batch, but the current block of code that has
+        rem already been parsed continues to be executed using command line context
+        rem this means that all interrupts are passed directly to the commands
+        rem however, features like setlocal do not work and complexity increases
+        if "%~x1"==".py" (
+            if not defined _SIGINT_TRAP (
+                set _SIGINT_TRAP=true
+                call %0 %* < nul
+                goto exit
+            )
+        )
+
         if exist "%filepath%.env" (
             for /f "tokens=* eol=# usebackq" %%i in ("%filepath%.env") do set %%i
         )
@@ -127,11 +142,11 @@
 
     if "%~1"=="" (
         if exist "%filepath%__main__.py" (
-            python "%filepath%__main__.py" "%temp%\getscript.tmp"
+            python "%filepath%__main__.py" "%temp%\getscript.tmp" < con
             if exist "%temp%\getscript.tmp" (
                 set /p script=<"%temp%\getscript.tmp"
                 del "%temp%\getscript.tmp"
-                call "%~0" "%script%"
+                call %0 "%script%"
             )
         ) else (
             echo Specify the script to run
@@ -178,7 +193,7 @@
             :help
             echo Usage: %filename% [-h] [script [^<args^>]] [-c ^| -u ^| -e]
             echo;
-            echo Python Virtual Environment Utility 2.3
+            echo Python Virtual Environment Utility 2.4
             echo;
             echo Positional arguments:
             echo script           script path in the utility folder
@@ -201,7 +216,7 @@
                 set args=!args:~1!
             )
             if not defined PYTHONVERBRUNAS (
-                python "%filepath%%~1" !args!
+                python "%filepath%%~1" !args! < con
                 if not errorlevel 126 goto exit
             )
             call :write_bom_bytes "%temp%\getadmin.ps1"
@@ -272,7 +287,7 @@
     call :hexprint "0xEF" EF
     call :hexprint "0xBB" BB
     call :hexprint "0xBF" BF
-    echo | set /p dummy="%EF%%BB%%BF%" > "%~1"
+    echo | set /p dummy="%EF%%BB%%BF%" > %1
     chcp %CP% > nul
     exit /b
 ::Functions
@@ -284,6 +299,10 @@ filename=$(basename -- "$filepath")
 filepath=$(dirname -- "$filepath")
 
 if [ -z "$PYTHONVERBRUNAS" ]; then
+    if [ ".${1##*.}" = ".py" ]; then
+        trap " " INT
+    fi
+
     if [ -f "$filepath/.env" ]; then
         set -a; . "$filepath/.env"; set +a
     fi
@@ -341,7 +360,7 @@ elif [ ! -f "$filepath/$1" ]; then
         -h|--help)
             echo "Usage: $filename [-h] [script [<args>]] [-c | -u | -e]"
             echo
-            echo Python Virtual Environment Utility 2.3
+            echo Python Virtual Environment Utility 2.4
             echo
             echo Positional arguments:
             echo "script           script path in the utility folder"
