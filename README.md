@@ -1,5 +1,10 @@
 Cross-platform way to run Python in virtual environment, written in POSIX Shell with Batch Script declarations. Pystart combines env, venv and sudo, see the script header for details.
 
+## Tested platforms
+* Windows 8.1, 10
+* OSX
+* Linux
+
 ## Get with Python
 
 ```shell
@@ -37,5 +42,7 @@ PYTHONVERBRUNAS=true ./pystart.bat script.py
 
 **Windows**
 ```batch
-cmd /c "set PYTHONVERBRUNAS=true & pystart.bat script.py"
+start "" cmd /c "set PYTHONVERBRUNAS=true & pystart.bat script.py"
 ```
+
+Run `cmd` without `start` to hide the window.
