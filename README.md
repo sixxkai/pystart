@@ -4,6 +4,7 @@ Cross-platform way to run Python in virtual environment, written in POSIX Shell 
 * Windows 8.1, 10
 * OSX
 * Linux
+* FreeBSD
 
 ## Get with Python
 

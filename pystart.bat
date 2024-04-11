@@ -41,7 +41,7 @@
 : # request root access, but the selected one can.
 : #
 : # Requests administrator rights if needed, Powershell is used in Windows,
-: # Polkit in Linux and AppleScript in OS X. When executing a script,
+: # AppleScript in OS X and Polkit in Linux and BSD. When executing a script,
 : # interpreter has only two exit codes: 0 (success) and 1 (an exception was
 : # raised). You can set the exit code manually with sys.exit. Use code 126 to
 : # have pystart.bat restart script with admin rights: "sys.exit(126)". If you
@@ -341,10 +341,10 @@ elif [ ! -f "$filepath/$1" ]; then
             find "$filepath" -type d -name __pycache__ -print -exec rm -rf {} \+
             ;;
         -u|--upgrade)
-            if [ "$platform" = "linux" ]; then
-                rm -rf "$HOME/.cache/pip/selfcheck/"
-            elif [ "$platform" = "darwin" ]; then
+            if [ "$platform" = "darwin" ]; then
                 rm -rf "$HOME/Library/Caches/pip/selfcheck/"
+            else
+                rm -rf "$HOME/.cache/pip/selfcheck/"
             fi
             python -m pip install --upgrade pip
             if [ -f "$filepath/requirements.txt" ]; then
@@ -388,17 +388,17 @@ else
             if command -v sudo > /dev/null; then
                 sudo "$filepath/$filename" "$script" $*
             else
-                su -l -c "'$filepath/$filename' '$script' $*"
+                su -l root -c "'$filepath/$filename' '$script' $*"
             fi
         else
-            if [ "$platform" = "linux" ]; then
+            if [ "$platform" = "darwin" ]; then
+                osascript -e "do shell script \"env -i '$filepath/$filename' '$script' $*\" with administrator privileges"
+            else
                 if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ] || [ -n "$MIR_SOCKET" ]; then
                     pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$filepath/$filename" "$script" "$@"
                 else
                     echo "Can't run \"$script\" as root with redirected input"
                 fi
-            elif [ "$platform" = "darwin" ]; then
-                osascript -e "do shell script \"env -i '$filepath/$filename' '$script' $*\" with administrator privileges"
             fi
         fi
     fi
