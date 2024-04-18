@@ -102,17 +102,8 @@
     set filename=%~nx0
 
     if not defined PYTHONVERBRUNAS (
-        rem instead of redirecting stdin, a fatal error can be used (goto undefined)
-        rem it immediately terminates batch, but the current block of code that has
-        rem already been parsed continues to be executed using command line context
-        rem this means that all interrupts are passed directly to the commands
-        rem however, features like setlocal do not work and complexity increases
         if "%~x1"==".py" (
-            if not defined _SIGINT_TRAP (
-                set _SIGINT_TRAP=true
-                call %0 %* < nul
-                goto exit
-            )
+            if not defined _sigint_trap goto restart_without_ctrl_handler
         )
 
         if exist "%filepath%.env" (
@@ -133,7 +124,7 @@
             if exist "%filepath%requirements.txt" (
                 pip -qq install --use-pep517 -r "%filepath%requirements.txt"
             )
-            for /f %%i in ('copy /Z "%~f0" nul') do set CR=%%i
+            for /f %%i in ('copy /z "%~f0" nul') do set CR=%%i
             <nul set /p dummy=".!CR!                                            !CR!"
         ) else (
             call "%filepath%venv\Scripts\activate.bat"
@@ -142,7 +133,7 @@
 
     if "%~1"=="" (
         if exist "%filepath%__main__.py" (
-            python "%filepath%__main__.py" "%temp%\getscript.tmp" < con
+            python "%filepath%__main__.py" "%temp%\getscript.tmp"
             if exist "%temp%\getscript.tmp" (
                 set /p script=<"%temp%\getscript.tmp"
                 del "%temp%\getscript.tmp"
@@ -177,7 +168,7 @@
             goto exit
 
             :upgrade
-            rd /s /q "%LOCALAPPDATA%\pip\cache\selfcheck\" 2>nul
+            rd /s /q "%localappdata%\pip\cache\selfcheck\" 2>nul
             python -m pip install --upgrade pip
             if exist "%filepath%requirements.txt" (
                 pip install --upgrade --use-pep517 -r "%filepath%requirements.txt"
@@ -216,7 +207,22 @@
                 set args=!args:~1!
             )
             if not defined PYTHONVERBRUNAS (
-                python "%filepath%%~1" !args! < con
+                if not exist "%temp%\pythonrc.py" (
+                    echo import ctypes
+                    echo import runpy
+                    echo import sys
+                    echo;
+                    echo ctypes.windll.kernel32.SetConsoleCtrlHandler^(None, False^)
+                    echo;
+                    echo try:
+                    echo     runpy.run_path^(sys.argv.pop^(1^), run_name="__main__"^)
+                    echo except SystemExit:
+                    echo     raise
+                    echo except:
+                    echo     import traceback
+                    echo     traceback.print_exc^(-1^)
+                ) > "%temp%\pythonrc.py"
+                python "%temp%\pythonrc.py" "%filepath%%~1" !args!
                 if not errorlevel 126 goto exit
             )
             call :write_bom_bytes "%temp%\getadmin.ps1"
@@ -231,13 +237,14 @@
                 echo ^"@
                 echo;
                 echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PID'"^).ParentProcessId
+                if defined _sigint_trap echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PPID'"^).ParentProcessId
                 echo $proc = Get-Process -Id $PPID
                 echo;
                 echo If ^([User32]::IsWindowVisible^($proc.MainWindowHandle^)^) {
-                echo     Start-Process cmd -ArgumentList "/k cd /d `"%cd%`" & cls &",'"%~f0" "%~1" !args!' -Verb RunAs
+                echo     Start-Process cmd -ArgumentList '/k "cd /d "%cd%" & cls & "%~f0" "%~1" !args!"' -Verb RunAs
                 echo }
                 echo Else {
-                echo     Start-Process cmd -ArgumentList "/c cd /d `"%cd%`" &",'"%~f0" "%~1" !args!' -Verb RunAs -WindowStyle hidden
+                echo     Start-Process cmd -ArgumentList '/c "cd /d "%cd%" & "%~f0" "%~1" !args!"' -Verb RunAs -WindowStyle hidden
                 echo }
             ) >> "%temp%\getadmin.ps1"
             rem powershell changes font if utf-8 code page is set
@@ -290,9 +297,20 @@
     echo | set /p dummy="%EF%%BB%%BF%" > %1
     chcp %CP% > nul
     exit /b
-::Functions
 
-platform=$(uname | tr "[:upper:]" "[:lower:]")
+    :restart_without_ctrl_handler
+    :: Goto undefined label is a fatal error. It immediately terminates
+    :: Batch processing. However, the currently executing block of code
+    :: continues to completion using command line context.
+    (
+    goto undefined 2>nul
+    title %comspec%
+    set _sigint_trap=true
+    start "" /b /wait cmd /c "%0 %*"
+    set "_sigint_trap="
+    chcp %codepage% > nul
+    )
+::Functions
 
 filepath=$(readlink -f -- "$0")
 filename=$(basename -- "$filepath")
@@ -336,12 +354,12 @@ if [ -z "$1" ]; then
         echo Specify the script to run
     fi
 elif [ ! -f "$filepath/$1" ]; then
-    case $1 in
+    case $(echo $1 | tr "[:upper:]" "[:lower:]") in
         -c|--clear)
             find "$filepath" -type d -name __pycache__ -print -exec rm -rf {} \+
             ;;
         -u|--upgrade)
-            if [ "$platform" = "darwin" ]; then
+            if [ "$(uname)" = "Darwin" ]; then
                 rm -rf "$HOME/Library/Caches/pip/selfcheck/"
             else
                 rm -rf "$HOME/.cache/pip/selfcheck/"
@@ -391,7 +409,7 @@ else
                 su -l root -c "'$filepath/$filename' '$script' $*"
             fi
         else
-            if [ "$platform" = "darwin" ]; then
+            if [ "$(uname)" = "Darwin" ]; then
                 osascript -e "do shell script \"env -i '$filepath/$filename' '$script' $*\" with administrator privileges"
             else
                 if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ] || [ -n "$MIR_SOCKET" ]; then
