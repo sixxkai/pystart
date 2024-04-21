@@ -225,33 +225,36 @@
                 python "%temp%\pythonrc.py" "%filepath%%~1" !args!
                 if not errorlevel 126 goto exit
             )
-            call :write_bom_bytes "%temp%\getadmin.ps1"
-            (
-                echo Add-Type -Language CSharp -TypeDefinition @^"
-                echo using System.Runtime.InteropServices;
-                echo public static class User32
-                echo {
-                echo     [DllImport^("user32.dll"^)]
-                echo     public static extern bool IsWindowVisible^(int hwnd^);
-                echo }
-                echo ^"@
-                echo;
-                echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PID'"^).ParentProcessId
-                if defined _sigint_trap echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PPID'"^).ParentProcessId
-                echo $proc = Get-Process -Id $PPID
-                echo;
-                echo If ^([User32]::IsWindowVisible^($proc.MainWindowHandle^)^) {
-                echo     Start-Process cmd -ArgumentList '/k "cd /d "%cd%" & cls & "%~f0" "%~1" !args!"' -Verb RunAs
-                echo }
-                echo Else {
-                echo     Start-Process cmd -ArgumentList '/c "cd /d "%cd%" & "%~f0" "%~1" !args!"' -Verb RunAs -WindowStyle hidden
-                echo }
-            ) >> "%temp%\getadmin.ps1"
+            if not exist "%temp%\getadmin.ps1" (
+                call :write_bom_bytes "%temp%\getadmin.ps1"
+                (
+                    echo Add-Type -Language CSharp -TypeDefinition @^"
+                    echo using System.Runtime.InteropServices;
+                    echo public static class User32
+                    echo {
+                    echo     [DllImport^("user32.dll"^)]
+                    echo     public static extern bool IsWindowVisible^(int hwnd^);
+                    echo }
+                    echo ^"@
+                    echo;
+                    echo $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PID'"^).ParentProcessId
+                    echo if ^($env:_sigint_trap^) {
+                    echo     $PPID = ^(Get-CimInstance -Class Win32_Process -Filter "ProcessId = '$PPID'"^).ParentProcessId
+                    echo }
+                    echo $proc = Get-Process -Id $PPID
+                    echo;
+                    echo If ^([User32]::IsWindowVisible^($proc.MainWindowHandle^)^) {
+                    echo     Start-Process cmd -ArgumentList "/k",^"`"cd","/d",^"`"$($args[0])`"^","&","cls","&",^"`"$($args[1])`"^",^"`"$($args[2])`" $^($args[3]^)`"" -Verb RunAs
+                    echo }
+                    echo Else {
+                    echo     Start-Process cmd -ArgumentList "/c",^"`"cd","/d",^"`"$($args[0])`"^","&",^"`"$($args[1])`"^",^"`"$($args[2])`" $^($args[3]^)`"" -Verb RunAs -WindowStyle hidden
+                    echo }
+                ) >> "%temp%\getadmin.ps1"
+                rem removing pythonrc.py and getadmin.ps1 fixes errors when updating pystart
+            )
             rem powershell changes font if utf-8 code page is set
             chcp 437 > nul
-            powershell -NoProfile -ExecutionPolicy bypass -File "%temp%\getadmin.ps1" > nul 2>&1
-            chcp 65001 > nul
-            del "%temp%\getadmin.ps1"
+            powershell -NoProfile -ExecutionPolicy bypass -File "%temp%\getadmin.ps1" "%cd%" "%~f0" "%~1" "!args!" > nul 2>&1
         )
     )
 
