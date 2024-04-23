@@ -39,14 +39,13 @@ PYTHONWARNINGS=ignore
 
 ```python
 import sys
-import tempfile
 
 # assign 'script'
 ...
 
-if len(sys.argv) == 2 and tempfile.gettempdir() in sys.argv[1]:
-    with open(sys.argv[1], "w", encoding="utf-8") as temp:
-        temp.write(script)
+if len(sys.argv) == 2 and "pystart" in sys.argv[1]:
+    with open(sys.argv[1], "w", encoding="utf-8") as selector:
+        selector.write(script)
     sys.exit()
 
 # not called from pystart, do something else

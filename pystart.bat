@@ -35,10 +35,10 @@
 : # should be used when creating the venv, set the PYTHONBINARYPATH.
 : #
 : # You can add script selector __main__.py which will write the script name
-: # to /tmp/getscript.tmp. Then it will be possible to run pystart.bat without
-: # arguments. Or __main__.py can be used as the default script. In this case,
-: # writing name in /tmp/getscript.tmp is not needed. Default script cannot
-: # request root access, but the selected one can.
+: # to the path passed as an argument. Then it will be possible to run without
+: # explicitly specifying the name. Or __main__.py can be used as the default
+: # script. In this case, writing name to file is not needed. Default script
+: # cannot request root access, but the selected one can.
 : #
 : # Requests administrator rights if needed, Powershell is used in Windows,
 : # AppleScript in OS X and Polkit in Linux and BSD. When executing a script,
@@ -101,6 +101,11 @@
     set filepath=%~dp0
     set filename=%~nx0
 
+    if not exist "%filepath%.pystart\" (
+        mkdir "%filepath%.pystart"
+        attrib +h "%filepath%.pystart"
+    )
+
     if not defined PYTHONVERBRUNAS (
         if "%~x1"==".py" (
             if not defined _sigint_trap goto restart_without_ctrl_handler
@@ -133,10 +138,10 @@
 
     if "%~1"=="" (
         if exist "%filepath%__main__.py" (
-            python "%filepath%__main__.py" "%temp%\getscript.tmp"
-            if exist "%temp%\getscript.tmp" (
-                set /p script=<"%temp%\getscript.tmp"
-                del "%temp%\getscript.tmp"
+            python "%filepath%__main__.py" "%filepath%.pystart\getscript.tmp"
+            if exist "%filepath%.pystart\getscript.tmp" (
+                set /p script=<"%filepath%.pystart\getscript.tmp"
+                del "%filepath%.pystart\getscript.tmp"
                 call %0 "%script%"
             )
         ) else (
@@ -207,7 +212,7 @@
                 set args=!args:~1!
             )
             if not defined PYTHONVERBRUNAS (
-                if not exist "%temp%\pythonrc.py" (
+                if not exist "%filepath%.pystart\pythonrc.py" (
                     echo import ctypes
                     echo import runpy
                     echo import sys
@@ -221,12 +226,12 @@
                     echo except:
                     echo     import traceback
                     echo     traceback.print_exc^(-1^)
-                ) > "%temp%\pythonrc.py"
-                python "%temp%\pythonrc.py" "%filepath%%~1" !args!
+                ) > "%filepath%.pystart\pythonrc.py"
+                python "%filepath%.pystart\pythonrc.py" "%filepath%%~1" !args!
                 if not errorlevel 126 goto exit
             )
-            if not exist "%temp%\getadmin.ps1" (
-                call :write_bom_bytes "%temp%\getadmin.ps1"
+            if not exist "%filepath%.pystart\getadmin.ps1" (
+                call :write_bom_bytes "%filepath%.pystart\getadmin.ps1"
                 (
                     echo Add-Type -Language CSharp -TypeDefinition @^"
                     echo using System.Runtime.InteropServices;
@@ -249,12 +254,12 @@
                     echo Else {
                     echo     Start-Process cmd -ArgumentList "/c",^"`"cd","/d",^"`"$($args[0])`"^","&",^"`"$($args[1])`"^",^"`"$($args[2])`" $^($args[3]^)`"" -Verb RunAs -WindowStyle hidden
                     echo }
-                ) >> "%temp%\getadmin.ps1"
+                ) >> "%filepath%.pystart\getadmin.ps1"
                 rem removing pythonrc.py and getadmin.ps1 fixes errors when updating pystart
             )
             rem powershell changes font if utf-8 code page is set
             chcp 437 > nul
-            powershell -NoProfile -ExecutionPolicy bypass -File "%temp%\getadmin.ps1" "%cd%" "%~f0" "%~1" "!args!" > nul 2>&1
+            powershell -NoProfile -ExecutionPolicy bypass -File "%filepath%.pystart\getadmin.ps1" "%cd%" "%~f0" "%~1" "!args!" > nul 2>&1
         )
     )
 
@@ -319,6 +324,10 @@ filepath=$(readlink -f -- "$0")
 filename=$(basename -- "$filepath")
 filepath=$(dirname -- "$filepath")
 
+if [ ! -d "$filepath/.pystart" ]; then
+    mkdir "$filepath/.pystart"
+fi
+
 if [ -z "$PYTHONVERBRUNAS" ]; then
     if [ ".${1##*.}" = ".py" ]; then
         trap " " INT
@@ -347,10 +356,10 @@ fi
 
 if [ -z "$1" ]; then
     if [ -f "$filepath/__main__.py" ]; then
-        python "$filepath/__main__.py" /tmp/getscript.tmp
-        if [ -f /tmp/getscript.tmp ]; then
-            script=$(cat /tmp/getscript.tmp)
-            rm /tmp/getscript.tmp
+        python "$filepath/__main__.py" "$filepath/.pystart/getscript.tmp"
+        if [ -f "$filepath/.pystart/getscript.tmp" ]; then
+            script=$(cat "$filepath/.pystart/getscript.tmp")
+            rm "$filepath/.pystart/getscript.tmp"
             "$0" "$script"
         fi
     else
