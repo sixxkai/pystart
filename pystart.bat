@@ -18,7 +18,7 @@
 : #  2) System Utilities
 : #   (win): -
 : #   (mac): -
-: #   (nix): coreutils, findutils, grep, sed, polkit
+: #   (nix): coreutils, findutils, polkit
 : #
 : # This tool provides basic setup of the required environment and is intended
 : # for Python projects distribution. Its code can be rewritten in any other
@@ -432,12 +432,4 @@ else
             fi
         fi
     fi
-fi
-
-if [ -z "$PYTHONVERBRUNAS" ]; then
-    if [ -f "$filepath/.env" ]; then
-        unset $(grep -E -v "^#|^$" "$filepath/.env" | sed -E "s/(.*)=.*/\1/" | xargs)
-    fi
-
-    deactivate
 fi
