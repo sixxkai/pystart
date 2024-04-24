@@ -34,11 +34,10 @@
 : # to set interpreter options. To specify which version of the interpreter
 : # should be used when creating the venv, set the PYTHONBINARYPATH.
 : #
-: # You can add script selector __main__.py which will write the script name
-: # to the path passed as an argument. Then it will be possible to run without
-: # explicitly specifying the name. Or __main__.py can be used as the default
-: # script. In this case, writing name to file is not needed. Default script
-: # cannot request root access, but the selected one can.
+: # You can add a script selector __main__.py which will optionally write the
+: # script name to the path passed to it. Then it becomes possible to run
+: # pystart without arguments. __main__ acts as the default script. It cannot
+: # request root access, but the selected script can.
 : #
 : # Requests administrator rights if needed, Powershell is used in Windows,
 : # AppleScript in OS X and Polkit in Linux and BSD. When executing a script,
@@ -71,8 +70,8 @@
 : # jump to. Label becomes unusable if it contains special characters. Thus,
 : # inside a batch script, you can add a shell line with ":;". Cross-platform
 : # comment is added using ":;#" or ": #". The space or semicolon are
-: # necessary because sh considers # to be part of a command name if it is not
-: # the first character of an identifier.
+: # necessary because sh considers "#" to be part of a command name if it is
+: # not the first character of an identifier.
 : #
 : # For batch code blocks, heredocs can be used. This redirection mechanism is
 : # for passing multiple lines of input to a command or to comment out code.

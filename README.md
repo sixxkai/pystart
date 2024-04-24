@@ -60,6 +60,8 @@ if len(sys.argv) == 2 and "pystart" in sys.argv[1]:
 PYTHONVERBRUNAS=true ./pystart.bat script.py
 ```
 
+Pystart is not supposed to be sourced.
+
 **Windows**
 
 ```batch
@@ -72,7 +74,6 @@ Run `cmd` without `start` to hide the window.
 
 ```python
 import os
-import sys
 
 def run_as_admin():
     if os.name == "posix":
@@ -82,6 +83,7 @@ def run_as_admin():
         isAdmin = ctypes.windll.shell32.IsUserAnAdmin()
 
     if not isAdmin:
+        import sys
         sys.exit(126)
 
 run_as_admin()
