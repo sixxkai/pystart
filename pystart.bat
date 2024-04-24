@@ -59,9 +59,9 @@
 : # pystart.bat --execute
 : #
 : # Feel free to rename this file. To run on Windows, .bat or .cmd extension
-: # is required. At the same time, the .py extension is not required, which
-: # allows scripts to be named as subcommands of the utility. When running
-: # *.py programs, interrupts are ignored.
+: # is required. At the same time, the .py extension is optional, which allows
+: # scripts to be named as subcommands of the utility. When running "*.py"
+: # programs, interrupts are ignored.
 : #
 : # -------------------------- Syntax reference ------------------------------
 : #
@@ -69,9 +69,9 @@
 : # true. A feature of COMMAND.COM is that it skips labels that it cannot
 : # jump to. Label becomes unusable if it contains special characters. Thus,
 : # inside a batch script, you can add a shell line with ":;". Cross-platform
-: # comment is added using ":;#" or ": #". The space or semicolon are
-: # necessary because sh considers "#" to be part of a command name if it is
-: # not the first character of an identifier.
+: # comment is added using ":;#" or ": #". The space or semicolon are required
+: # because sh considers "#" to be part of a command name if it is not the
+: # first character of an identifier.
 : #
 : # For batch code blocks, heredocs can be used. This redirection mechanism is
 : # for passing multiple lines of input to a command or to comment out code.
@@ -204,8 +204,11 @@
             echo No script named "%~1"
             goto exit
         ) else (
-            set args=%*
+            set script=%~1
             rem "call set" also can be used
+            set script=!script:/=\!
+            rem shift has no effect on the %*
+            set args=%*
             set args=!args:*%1=!
             if not "!args!"=="" (
                 set args=!args:~1!
@@ -226,7 +229,7 @@
                     echo     import traceback
                     echo     traceback.print_exc^(-1^)
                 ) > "%filepath%.pystart\pythonrc.py"
-                python "%filepath%.pystart\pythonrc.py" "%filepath%%~1" !args!
+                python "%filepath%.pystart\pythonrc.py" "%filepath%!script!" !args!
                 if not errorlevel 126 goto exit
             )
             if not exist "%filepath%.pystart\getadmin.ps1" (
@@ -258,7 +261,7 @@
             )
             rem powershell changes font if utf-8 code page is set
             chcp 437 > nul
-            powershell -NoProfile -ExecutionPolicy bypass -File "%filepath%.pystart\getadmin.ps1" "%cd%" "%~f0" "%~1" "!args!" > nul 2>&1
+            powershell -NoProfile -ExecutionPolicy bypass -File "%filepath%.pystart\getadmin.ps1" "%cd%" "%~f0" "!script!" "!args!" > nul 2>&1
         )
     )
 
@@ -365,7 +368,7 @@ if [ -z "$1" ]; then
         echo Specify the script to run
     fi
 elif [ ! -f "$filepath/$1" ]; then
-    case $(echo $1 | tr "[:upper:]" "[:lower:]") in
+    case $(printf "%s" "$1" | tr "[:upper:]" "[:lower:]") in
         -c|--clear)
             find "$filepath" -type d -name __pycache__ -print -exec rm -rf {} \+
             ;;
@@ -381,10 +384,8 @@ elif [ ! -f "$filepath/$1" ]; then
             fi
             ;;
         -e|--execute)
-            pushd "$filepath" > /dev/null
             read -p "(venv) > " usrcmd
             eval $usrcmd
-            popd > /dev/null
             ;;
         -h|--help)
             echo "Usage: $filename [-h] [script [<args>]] [-c | -u | -e]"
