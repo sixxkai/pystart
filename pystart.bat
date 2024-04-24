@@ -60,7 +60,7 @@
 : #
 : # Feel free to rename this file. To run on Windows, .bat or .cmd extension
 : # is required. At the same time, the .py extension is optional, which allows
-: # scripts to be named as subcommands of the utility. When running "*.py"
+: # scripts to be named as subcommands of the utility. When running *.py
 : # programs, interrupts are ignored.
 : #
 : # -------------------------- Syntax reference ------------------------------
@@ -78,8 +78,7 @@
 : # Once again use the colon trick to ignore this line in batch. Put the
 : # delimiting identifier in quotes so shell does not interpret its contents.
 : # Identifier is also an unused batch label for closing line to be ignored.
-: # In this way shell treats batch code as an unused string, and cmd
-: # executes it.
+: # In this way shell treats batch code as an unused string.
 : #
 : # DOS uses carriage return and line feed "\r\n" as a line ending, which Unix
 : # uses just line feed "\n". So in order for script to run you may need to
@@ -180,7 +179,7 @@
             goto exit
 
             :execute
-            cd %filepath%
+            cd "%filepath%"
             set /p usrcmd="(venv) > "
             %usrcmd%
             goto exit
@@ -225,11 +224,17 @@
                     echo     runpy.run_path^(sys.argv.pop^(1^), run_name="__main__"^)
                     echo except SystemExit:
                     echo     raise
-                    echo except:
+                    echo except BaseException as e:
                     echo     import traceback
                     echo     traceback.print_exc^(-1^)
+                    echo     if isinstance^(e, KeyboardInterrupt^):
+                    echo         print^("^C", end=""^)
                 ) > "%filepath%.pystart\pythonrc.py"
-                python "%filepath%.pystart\pythonrc.py" "%filepath%!script!" !args!
+                if defined _sigint_trap (
+                    python "%filepath%.pystart\pythonrc.py" "%filepath%!script!" !args!
+                ) else (
+                    python "%filepath%!script!" !args!
+                )
                 if not errorlevel 126 goto exit
             )
             if not exist "%filepath%.pystart\getadmin.ps1" (
@@ -384,6 +389,7 @@ elif [ ! -f "$filepath/$1" ]; then
             fi
             ;;
         -e|--execute)
+            cd "$filepath"
             read -p "(venv) > " usrcmd
             eval $usrcmd
             ;;
