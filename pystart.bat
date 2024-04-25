@@ -78,7 +78,7 @@
 : # Once again use the colon trick to ignore this line in batch. Put the
 : # delimiting identifier in quotes so shell does not interpret its contents.
 : # Identifier is also an unused batch label for closing line to be ignored.
-: # In this way shell treats batch code as an unused string.
+: # In this way shell treats batch code as an unused string or documentation.
 : #
 : # DOS uses carriage return and line feed "\r\n" as a line ending, which Unix
 : # uses just line feed "\n". So in order for script to run you may need to
