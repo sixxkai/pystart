@@ -238,7 +238,8 @@
                 if not errorlevel 126 goto exit
             )
             if not exist "%filepath%.pystart\getadmin.ps1" (
-                call :write_bom_bytes "%filepath%.pystart\getadmin.ps1"
+                rem uncomment if you are using unicode in script command(s)
+                rem call :write_bom_bytes "%filepath%.pystart\getadmin.ps1"
                 (
                     echo Add-Type -Language CSharp -TypeDefinition @^"
                     echo using System.Runtime.InteropServices;

@@ -1,4 +1,4 @@
-Cross-platform way to run Python in virtual environment, written in POSIX Shell with Batch Script declarations. Pystart combines env, venv and sudo, see the script header for details. It was created as a loader for Crossgui based applications.
+Cross-platform way to run Python in virtual environment, written in POSIX Shell with Batch Script declarations. Pystart combines env, venv and sudo, see the script header for details. It was created as a loader for PopGui based applications.
 
 ## Tested platforms
 
@@ -29,7 +29,7 @@ script.py
 ```env
 PYTHONBINARYPATH="C:\Program Files\Python310\python.exe"
 PYTHONDONTWRITEBYTECODE=true
-PYTHONPATH=C:\Users\sixxkai\Desktop\crossgui
+PYTHONPATH=C:\Users\sixxkai\Desktop\popgui
 # PYTHONPYCACHEPREFIX=/var/cache/python
 # PYTHONUNBUFFERED=true
 PYTHONWARNINGS=ignore
