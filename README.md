@@ -1,4 +1,14 @@
-Cross-platform way to run Python in virtual environment, written in POSIX Shell with Batch Script declarations. Pystart combines env, venv and sudo, see the script header for details. It was created as a loader for PopGui based applications.
+Cross-platform way to run Python in virtual environment, written in POSIX Shell with Batch Script declarations. Pystart combines env, venv and sudo, see the script header for details.
+
+## Another virtual environment manager?
+
+On a working computer, the programmer configures the system for development needs. There is a wide range of different IDEs and tools available.
+
+The distribution process involves packaging or containerizing the project into a special form that contains all the dependencies and settings. This relieves the user from additional configuration steps.
+
+Pystart provides basic setup of the required environment and is intended for testing and minimalistic development of Python projects. It is a simple solution when the source code author has not packaged the program.
+
+The utility does not contain thousands of lines, it is easy to edit to suit your needs. Pystart was created as a loader for PopGui based applications.
 
 ## Tested platforms
 
@@ -35,7 +45,7 @@ PYTHONPATH=C:\Users\sixxkai\Desktop\popgui
 PYTHONWARNINGS=ignore
 ```
 
-## Script selector
+## Script selector \_\_main\_\_
 
 ```python
 import sys

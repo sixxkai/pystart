@@ -21,9 +21,9 @@
 : #   (nix): coreutils, findutils, polkit
 : #
 : # This tool provides basic setup of the required environment and is intended
-: # for Python projects distribution. Its code can be rewritten in any other
-: # language, but you will still have to run the commands. So shell is an
-: # assembler in this case, everything is native and simple.
+: # for testing and minimalistic development. Its code can be rewritten in any
+: # other language, but you will still have to run the commands. So shell is
+: # an assembler in this case, everything is native and simple.
 : #
 : # ------------------------------ Features ----------------------------------
 : #
