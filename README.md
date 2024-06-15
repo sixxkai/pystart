@@ -23,15 +23,16 @@ The utility does not contain thousands of lines, it is easy to edit to suit your
 python -c "import os, urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/sixxkai/pystart/master/pystart.bat', 'pystart.bat'); os.name == 'posix' and os.chmod('pystart.bat', 0o755)"
 ```
 
-## Advanced folder structure
+## Project folder structure
 
 ```
-folder/script.py
-__main__.py
-.env
-pystart.bat
-requirements.txt
-script.py
+|_  pystart.bat
+|_  .env
+|_  requirements.txt
+|_  __main__.py
+|_  script.py
+|_  folder
+    |_  script.py
 ```
 
 ## Example .env
